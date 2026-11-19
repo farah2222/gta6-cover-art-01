@@ -1,23 +1,146 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cover Snap</title>
-<link rel="stylesheet" href="./style.css">
+<title>VICE COVER STUDIO — GTA 6-style cover art maker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff2e88'/%3E%3Ctext x='16' y='23' font-size='18' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='white'%3EVC%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <h1>Cover Snap</h1>
-    <p>A photo and a caption, made into a square cover.</p>
-    <label>Photo <input id="photo" type="file" accept="image/*"></label>
-    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-    <button id="export" type="button">Export PNG 1080 x 1080</button>
-    <p id="status" role="status"></p>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">VC</span>
+    <div>
+      <h1>VICE COVER STUDIO</h1>
+      <p>Turn your photos into GTA&nbsp;6-style multi-panel cover art</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="undoBtn" class="btn ghost" title="Undo (Ctrl+Z)">↩ Undo</button>
+    <button id="redoBtn" class="btn ghost" title="Redo (Ctrl+Y)">↪ Redo</button>
+    <button id="exportAllBtn" class="btn primary">⬇ Export all 3 sizes</button>
+  </div>
+</header>
+
+<main class="workspace">
+  <section class="preview-col">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="poster" width="900" height="900"></canvas>
+      <div class="drop-hint" id="dropHint">Drop photos here or use “Add photos”</div>
+    </div>
+    <div class="preview-bar">
+      <span id="sizeLabel">1080 × 1080 · square post</span>
+      <div class="size-tabs" role="tablist" aria-label="Preview size">
+        <button class="size-tab active" data-ar="square">■ 1:1</button>
+        <button class="size-tab" data-ar="portrait">▯ 4:5</button>
+        <button class="size-tab" data-ar="wide">▭ 16:9</button>
+      </div>
+    </div>
   </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
+
+  <aside class="panel-col">
+    <section class="card">
+      <h2>1 · Photos</h2>
+      <div class="row">
+        <label class="btn file-btn">＋ Add photos
+          <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        </label>
+        <button id="fillAllBtn" class="btn">Fill all panels</button>
+        <button id="shuffleBtn" class="btn">Shuffle</button>
+      </div>
+      <div class="row sample-row">
+        <span class="muted">Try a sample:</span>
+        <button class="btn small sample-btn" data-sample="samples/boulevard.jpg">Boulevard</button>
+        <button class="btn small sample-btn" data-sample="samples/pier.jpg">Pier</button>
+        <button class="btn small" id="demoBtn">Load demo</button>
+      </div>
+      <div id="photoStrip" class="photo-strip" aria-label="Loaded photos"></div>
+      <p class="muted tiny">Photos stay on your machine — nothing is uploaded.</p>
+    </section>
+
+    <section class="card">
+      <h2>2 · Layout</h2>
+      <div class="grid-btns" id="layoutBtns"></div>
+    </section>
+
+    <section class="card">
+      <h2>3 · Colour grade</h2>
+      <div class="grid-btns" id="gradeBtns"></div>
+    </section>
+
+    <section class="card">
+      <h2>4 · Selected panel</h2>
+      <p class="muted tiny">Click a panel in the preview to pick it, then crop and position it.</p>
+      <div class="field">
+        <label for="panelPhoto">Photo in this panel</label>
+        <select id="panelPhoto"></select>
+      </div>
+      <div class="field">
+        <label>Zoom <span id="zoomVal">1.00×</span></label>
+        <input type="range" id="zoomRange" min="1" max="3" step="0.01" value="1">
+      </div>
+      <div class="field">
+        <label>Position X <span id="oxVal">0</span></label>
+        <input type="range" id="oxRange" min="-100" max="100" step="1" value="0">
+      </div>
+      <div class="field">
+        <label>Position Y <span id="oyVal">0</span></label>
+        <input type="range" id="oyRange" min="-100" max="100" step="1" value="0">
+      </div>
+      <button id="resetPanelBtn" class="btn small">Reset this panel</button>
+    </section>
+
+    <section class="card">
+      <h2>5 · Caption &amp; lettering</h2>
+      <div class="field">
+        <label for="titleInput">Title</label>
+        <input type="text" id="titleInput" value="VICE CITY" maxlength="24">
+      </div>
+      <div class="field">
+        <label for="subtitleInput">Subtitle</label>
+        <input type="text" id="subtitleInput" value="Neon nights · your story" maxlength="60">
+      </div>
+      <div class="field">
+        <label for="badgeInput">Badge / ribbon</label>
+        <input type="text" id="badgeInput" value="EST. 2026" maxlength="20">
+      </div>
+      <div class="field">
+        <label for="fontSelect">Title font</label>
+        <select id="fontSelect">
+          <option value="Anton">Anton — heavy block</option>
+          <option value="Bebas Neue">Bebas Neue — tall caps</option>
+          <option value="Pacifico">Pacifico — script</option>
+          <option value="Oswald">Oswald — condensed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="titleColor">Title colour</label>
+        <input type="color" id="titleColor" value="#ffffff">
+      </div>
+      <div class="row checks">
+        <label><input type="checkbox" id="outlineCheck" checked> Outline</label>
+        <label><input type="checkbox" id="halftoneCheck" checked> Halftone title block</label>
+        <label><input type="checkbox" id="grainCheck" checked> Film grain</label>
+        <label><input type="checkbox" id="vignetteCheck" checked> Vignette</label>
+      </div>
+    </section>
+
+    <section class="card export-card">
+      <h2>6 · Export PNG</h2>
+      <p class="muted tiny">One click per size, or all three at once. Files download to your machine.</p>
+      <div class="export-btns">
+        <button class="btn export-btn" data-export="square">1080 × 1080<br><span>Square post</span></button>
+        <button class="btn export-btn" data-export="portrait">1080 × 1350<br><span>Portrait post</span></button>
+        <button class="btn export-btn" data-export="wide">1920 × 1080<br><span>Wide / story</span></button>
+      </div>
+      <p id="exportStatus" class="muted tiny" aria-live="polite"></p>
+    </section>
+
+    <p class="fineprint">An original fan-style cover maker. Not affiliated with Rockstar Games. Fonts: Anton, Bebas Neue, Pacifico, Oswald — SIL Open Font License (see fonts/OFL.txt).</p>
+  </aside>
 </main>
-<script type="module" src="./src/main.js"></script>
+
+<script src="app.js"></script>
 </body>
 </html>
